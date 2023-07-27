@@ -1,0 +1,26 @@
+1. rpm -qa | grep sendmail
+2. rpm -qa | grep postfix
+3. systemctl stop postfix
+4. yum install -y sendmail*
+5. rpm -qa | grep sendmail
+6. vim /etc/mail/sendmail.mc
+dnl DAEMON_OPTIONS
+7. vim /etc/mail/local-host-names
+nehraclasses.com
+vn.nehraclasses.com
+8. (a) useradd nehra
+    (b) passwd nehra
+9. systemctl start sendmail
+10. systemctl enable sendmail
+11. mail -v -s "test mail" nehra@nehraclasses.com
+
+Hello, This is the test email.
+.
+EOT
+
+12. su - nehra
+
+13. mail
+& 1
+
+14. tail /var/log/maillog

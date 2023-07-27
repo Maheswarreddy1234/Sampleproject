@@ -1,0 +1,477 @@
+===============================================================
+Galera MariaDB cluster configuration and Installation
+===============================================================
+Prerequisites
+Three servers running Ubuntu 22.04.
+A root password is configured on the server.
+Getting Started
+Before starting, you will need to update your system packages to the latest version. 
+You can update them using the following command:
+
+#apt-get update -y
+Once your server is updated, you can proceed to the next step.
+
+Add all the node Ip address to the /etc/hosts file to each node to communicate
+#vim /etc/hosts
+192.168.10.1	Node1
+192.168.10.2	Node2
+192.168.10.3	Node3 
+
+#Install MariaDB Server
+First, you will need to install the MariaDB server on all nodes. You can install it by running the following command
+
+#apt-get install mariadb-server -y
+Once the installation has been finished, start the MariaDB service and enable them to start at system reboot
+
+
+#systemctl start mariadb
+#systemctl status mariadb
+Next, you will need to secure the MariaDB installation and set a MariaDB root password on each node. 
+You can do it with the following command:
+
+#mysql_secure_installation
+You will be asked to set a MariaDB root password as shown below:
+
+Enter current password for root (enter for none): 
+Switch to unix_socket authentication [Y/n] n
+Change the root password? [Y/n] Y
+New password:
+Re-enter new password:
+Remove anonymous users? [Y/n] Y
+Disallow root login remotely? [Y/n] Y
+Remove test database and access to it? [Y/n] Y
+Reload privilege tables now? [Y/n] Y
+Once your MariaDB server is secured, you can proceed to the next step.
+
+Configure Galera Cluster
+Next, you will need to create a Galera configuration file on each node so that each node can communicate with each other.
+
+On the first node, create a galera.cnf file using the following command:
+
+#nano /etc/mysql/conf.d/galera.cnf
+Add the following lines:
+
+[mysqld]
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+bind-address=0.0.0.0
+
+# Galera Provider Configuration
+wsrep_on=ON
+wsrep_provider=/usr/lib/galera/libgalera_smm.so
+
+# Galera Cluster Configuration
+wsrep_cluster_name="galera_cluster"
+wsrep_cluster_address="gcomm://node1-ip-address,node2-ip-address,node3-ip-address"
+
+# Galera Synchronization Configuration
+wsrep_sst_method=rsync
+
+# Galera Node Configuration
+wsrep_node_address="node1-ip-address"
+wsrep_node_name="node1"
+Save and close the file when you are finished.
+
+On the second node, create a galera.cnf file using the following command:
+
+#nano /etc/mysql/conf.d/galera.cnf
+Add the following lines:
+
+[mysqld]
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+bind-address=0.0.0.0
+
+# Galera Provider Configuration
+wsrep_on=ON
+wsrep_provider=/usr/lib/galera/libgalera_smm.so
+
+# Galera Cluster Configuration
+wsrep_cluster_name="galera_cluster"
+wsrep_cluster_address="gcomm://node1-ip-address,node2-ip-address,node3-ip-address"
+
+# Galera Synchronization Configuration
+wsrep_sst_method=rsync
+
+# Galera Node Configuration
+wsrep_node_address="node2-ip-address"
+wsrep_node_name="node2"
+Save and close the file when you are finished.
+
+On the third node, create a galera.cnf file using the following command:
+
+#nano /etc/mysql/conf.d/galera.cnf
+Add the following lines:
+
+[mysqld]
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+bind-address=0.0.0.0
+
+# Galera Provider Configuration
+wsrep_on=ON
+wsrep_provider=/usr/lib/galera/libgalera_smm.so
+
+# Galera Cluster Configuration
+wsrep_cluster_name="galera_cluster"
+wsrep_cluster_address="gcomm://node1-ip-address,node2-ip-address,node3-ip-address"
+
+# Galera Synchronization Configuration
+wsrep_sst_method=rsync
+
+# Galera Node Configuration
+wsrep_node_address="node3-ip-address"
+wsrep_node_name="node3"
+Save and close the file when you are finished.
+
+Initialize the Galera Cluster
+At this point, all nodes are configured to communicate with each other.
+
+Next, you will need to stop the MariaDB service on all nodes. You can run the following command to stop the MariaDB service:
+
+#systemctl stop mariadb
+On the first node, initialize the MariaDB Galera cluster with the following command:
+
+#galera_new_cluster
+Now, check the status of the cluster with the following command:
+
+#mysql -u root -p -e "SHOW STATUS LIKE 'wsrep_cluster_size'"
+You should see the following output:
+
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| wsrep_cluster_size | 1     |
++--------------------+-------+
+On the second node, start the MariaDB service with the following command:
+
+#systemctl start mariadb
+Next, check the status of the MariaDB Galera cluster with the following command:
+
+#mysql -u root -p -e "SHOW STATUS LIKE 'wsrep_cluster_size'"
+You should see the following output:
+
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| wsrep_cluster_size | 2     |
++--------------------+-------+
+On the third node, start the MariaDB service with the following command:
+
+#systemctl start mariadb
+Next, check the status of the MariaDB Galera cluster with the following command:
+
+#mysql -u root -p -e "SHOW STATUS LIKE 'wsrep_cluster_size'"
+You should see the following output:
+
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| wsrep_cluster_size | 3     |
++--------------------+-------+
+At this point, the MariaDB Galera cluster is initialized. You can now proceed to the next step.
+
+Verify Cluster Replication
+Next, you will need to verify whether the replication is working or not.
+
+On the First node, connect to the MariaDB with the following command:
+
+#mysql -u root -p
+Once your are connected, create some database with the following command:
+
+MariaDB [(none)]> create database db1;
+MariaDB [(none)]> create database db2;
+Next, exit from the MariaDB with the following command:
+
+MariaDB [(none)]> exit;
+Next, go to the second node and log in to the MariaDB with the following command:
+
+#mysql -u root -p
+Next, run the following command to show all databases:
+
+MariaDB [(none)]> show databases;
+You should see that both databases that we have created on the first node are replicated on the second node:
+
++--------------------+
+| Database           |
++--------------------+
+| db1                |
+| db2                |
+| information_schema |
+| mysql              |
+| performance_schema |
++--------------------+
+5 rows in set (0.001 sec)
+Next, go to the third node and log in to the MariaDB with the following command:
+
+#mysql -u root -p
+Next, run the following command to show all databases:
+
+MariaDB [(none)]> show databases;
+You should see that both databases that we have created on the first node are replicated on the third node:
+
++--------------------+
+| Database           |
++--------------------+
+| db1                |
+| db2                |
+| information_schema |
+| mysql              |
+| performance_schema |
++--------------------+
+5 rows in set (0.001 sec)
+Conclusion
+In the above guide, we learned how to set up a three-node MariaDB Galera cluster on Ubuntu 20.04 server. You can now add more nodes to the MariaDB Galera cluster easily. Feel free to ask me if you have any questions.
+
+===============================================================================================
+Mariadb galera cluster Installation and configuration on centos 8 stream
+===============================================================================================
+#yum update -y
+#yum install mariadb-server -y
+#systemctl start mariadb
+#systemctl enable mariadb
+#mysql_secure_installation
+#Enter the recquired information
+#mysql -u root -p
+#quit
+
+Configure the server node to create clustering 
+[NODE 1]
+#vim /etc/my.cnf.d/galera.cnf
+
+[mysqld]
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+bind-address=0.0.0.0
+
+# Galera Provider Configuration
+wsrep_on=ON
+wsrep_provider=/usr/lib64/galera-4/libgalera_smm.so
+
+# Galera Cluster Configuration
+wsrep_cluster_name="test_cluster"
+wsrep_cluster_address="gcomm://First_Node_IP,Second_Node_IP,Third_Node_IP"
+
+# Galera Synchronization Configuration
+wsrep_sst_method=rsync
+
+# Galera Node Configuration
+wsrep_node_address="This_Node_IP"
+wsrep_node_name="This_Node_Name"
+
+Configure the remaining nodes to connect each other
+[NODE 2]
+#vi /etc/my.cnf.d/galera.cnf
+
+[mysqld]
+binlog_format=ROW
+default-storage-engine=innodb
+innodb_autoinc_lock_mode=2
+bind-address=0.0.0.0
+
+# Galera Provider Configuration
+wsrep_on=ON
+wsrep_provider=/usr/lib64/galera-4/libgalera_smm.so
+
+# Galera Cluster Configuration
+wsrep_cluster_name="test_cluster"
+wsrep_cluster_address="gcomm://First_Node_IP,Second_Node_IP,Third_Node_IP"
+
+# Galera Synchronization Configuration
+wsrep_sst_method=rsync
+
+# Galera Node Configuration
+wsrep_node_address="This_Node_IP"
+wsrep_node_name="This_Node_Name"
+
+Now stop the service of mariadb on all nodes
+#systemctl stop mariadb
+
+Run the following command to create a cluster on main server node
+#galera_new_cluster
+
+Now change desktop to mariadb server.
+#mysql -u root -p -e "SHOW STATUS LIKE 'wsrep_cluster_size'"
+You should see the following output:
+
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| wsrep_cluster_size | 1     |
++--------------------+-------+
+On the second node, start the MariaDB service with the following command:
+
+#systemctl start mariadb
+Next, check the status of the MariaDB Galera cluster with the following command:
+
+#mysql -u root -p -e "SHOW STATUS LIKE 'wsrep_cluster_size'"
+You should see the following output:
+
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| wsrep_cluster_size | 2     |
++--------------------+-------+
+On the third node, start the MariaDB service with the following command:
+
+#systemctl start mariadb
+Next, check the status of the MariaDB Galera cluster with the following command:
+
+#mysql -u root -p -e "SHOW STATUS LIKE 'wsrep_cluster_size'"
+You should see the following output:
+
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| wsrep_cluster_size | 3     |
++--------------------+-------+
+At this point, the MariaDB Galera cluster is initialized. You can now proceed to the next ste
+
+
+Verify Cluster Replication
+Next, you will need to verify whether the replication is working or not.
+
+On the First node, connect to the MariaDB with the following command:
+
+#mysql -u root -p
+Once your are connected, create some database with the following command:
+
+MariaDB [(none)]> create database db1;
+MariaDB [(none)]> create database db2;
+Next, exit from the MariaDB with the following command:
+
+MariaDB [(none)]> exit;
+Next, go to the second node and log in to the MariaDB with the following command:
+
+#mysql -u root -p
+Next, run the following command to show all databases:
+
+MariaDB [(none)]> show databases;
+You should see that both databases that we have created on the first node are replicated on the second node:
+
++--------------------+
+| Database           |
++--------------------+
+| db1                |
+| db2                |
+| information_schema |
+| mysql              |
+| performance_schema |
++--------------------+
+5 rows in set (0.001 sec)
+Next, go to the third node and log in to the MariaDB with the following command:
+
+#mysql -u root -p
+Next, run the following command to show all databases:
+
+MariaDB [(none)]> show databases;
+You should see that both databases that we have created on the first node are replicated on the third node:
+
++--------------------+
+| Database           |
++--------------------+
+| db1                |
+| db2                |
+| information_schema |
+| mysql              |
+| performance_schema |
++--------------------+
+5 rows in set (0.001 sec)
+Conclusion
+In the above guide, we learned how to set up a three-node MariaDB Galera cluster on centos8 server.
+You can now add more nodes to the MariaDB Galera cluster easily. 
+
+
+What are all the files related to user management?
+Ans:- /etc/passwd /etc/shadow Home directories
+How do you assign access to a user?
+How to get cpu information
+where the cpu and memory information stored in linux?
+How to configure name server?
+Explain the step by step booting process?
+How to setup step by step passwordless login authentication?
+How to check if a particular node is down in network level and user level?
+Ans:- ping and ssh
+How many runlevels are there and how to check them?
+Ans:- who -r or runlevel command
+
+What are all the files related to user management?
+Ans:- The files related to user is like
+1) /etc/passwd--keeps the user account and password information.
+2) /etc/shadow--Holds the encrypted passwords of the corresponding account.
+3) /etc/group--This file contains the group information for each account.
+4) /etc/gshadow--This file contains secure group account information.
+
+How do you assign access to a user?
+Ans:- chmod +rwx filename to add permissions
+By using ACL we can give access to user
+getfacl and setfacl are used for setting up ACL and showing ACL respectively
+Ex:- setfacl -m "u"user:permissions" path
+setfacl -m "g:group:permissions" path
+setfacl -b path--to remove all entries
+
+How to get report of CPU utilization for 24hours and where the memory information stored?
+sar -u -f /var/log/sa/sa13
+sar -u 2
+top (P M I S U)
+mpstat
+mpstat -P 0
+iostat
+vmstat
+
+How to configure DNS name server?
+vim /etc/resolv.conf
+
+
+Explain the step by step booting process in linux?
+The linux booting process contains 6steps
+1) BIOS:- Basic input/Output system.The BIOS loads and executes MBR(Master Boot Record).
+2)MBR:- Master Boot Record is responsible for loading and executing GRUB boot loader.It is located in /dev/sda or /dev/hda
+3)GRUB:- GRand Unified Bootloader.It's config file located in /boot/grub/grub.conf or /etc/grub.cnf.
+4)Kernel:- The kernel is referred to as the core of the operating system,It is complete control over everything in your system.
+5)Init:- At this point your system executes runlevel programs. At one point it will look for an init file, usually found at /etc/inittab to decide the Linux runlevel.
+6)Runlevel programs:- 
+
+
+How to setup step by step passwordless login authentication?
+Firstly we need to install a package, named as 
+#yum install openssh-server
+1)ssh-keygen -t rsa
+2)ssh-copy-id adminuser@192.168.23.23
+3)ssh adminuser@192.168.23.23
+
+
+How to check if a particular node is down in network level and user level?
+At network level we can check by using ping command
+ex:- ping nodeip
+At user level we can check by using ssh
+ex:- ssh ip
+
+How many runlevels are there and how to check them?
+There are 7runlevels in linux they are:
+Runlevel 0--Halt
+Runlevel 1--Single-user text mode
+Runlevel 2--Not used(user-definable)
+Runlevel 3--Full multi-user text mode
+Runlevel 4--Not used(user-definable)
+Runlevel 5--full multi-user graphical mode
+Runlevel 6--Reboot
+
+
+
+1)MARIADB done successfully on ubuntu.
+2)SSH-keygen passwordless authentication.
+3)FTP
+
+
+
+
+
+
+
+
+

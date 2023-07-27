@@ -1,0 +1,137 @@
+Configuration of DNS(Domain name server) server in RHEL8 or centos8 or centos7
+------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+DNS is a server that helps to resolve a fully qualified domain name(FQDN) into an ip address and aditionally, perform a reverse translation-translation of an ip address to a user 
+friendly domain name.
+
+Step:-1 Install DNS packages.
+#dnf install bind* -y or yum install bind* -y
+
+Start and Enable the DNS server using the command below:
+#systemctl enable named
+#systemctl start named
+#systemctl status named
+
+Step:-2 The configuration file for Dns is in /etc lets take backup of that file
+#cd /etc
+#cp named.conf named.confbkp
+
+Now go ahead and open the config file of DNS
+#vim /etc/named.conf
+ptions {
+        listen-on port 53 { 127.0.0.1; 192.168.149.208; };
+        listen-on-v6 port 53 { ::1; };
+        directory       "/var/named";
+        dump-file       "/var/named/data/cache_dump.db";
+        statistics-file "/var/named/data/named_stats.txt";
+        memstatistics-file "/var/named/data/named_mem_stats.txt";
+        secroots-file   "/var/named/data/named.secroots";
+        recursing-file  "/var/named/data/named.recursing";
+        allow-query     { any; };
+
+This setting allows only the hosts in the defined network to access the DNS server and not just any other host. 
+
+Now you have to define the reverse and forward lookup zones, copy and paste the following configuration at the end of /etc/named.conf file
+goto the end of conf file and copy this
+
+//FORWARD ZONE
+zone "maheswar.com" IN {
+        type master;
+        file "fw-maheswar.com";
+        allow-update { none; };
+};
+
+//REVERSE ZONE
+zone "149.168.192.in-addr.arpa" IN {
+        type master;
+        file "rv-maheswar.com";
+        allow-update { none; };
+};
+                     
+Step:-3 Now create a forward DNS zone file for the domain
+copy the file named.localhost to fw-maheswar.com and then modify the following
+
+#vim /var/named/fw-maheswar.com
+$TTL 1D
+@       IN SOA www.maheswar.com. root.maheswar.com (
+                                        0       ; serial
+                                        1D      ; refresh
+                                        1H      ; retry
+                                        1W      ; expire
+                                        3H )    ; minimum
+@       IN      NS      www.maheswar.com.
+maheswar.com.   IN      A       192.168.149.208
+www             IN      A       192.168.149.208
+
+#wq!
+
+Step:-4 Now create a reverse DNS server file for the domain
+copy the file named.loopback to rv-maheswar.com and then modify the following
+
+#vim /var/named/rv-maheswar.com
+$TTL 1D
+@       IN SOA  @ rname.invalid. (
+                                        0       ; serial
+                                        1D      ; refresh
+                                        1H      ; retry
+                                        1W      ; expire
+                                        3H )    ; minimum
+@       IN      NS      www.maheswar.com.
+208     IN      PTR     www.maheswar.com.
+                                 
+#wq!
+
+
+Next, assign the necessary file permissions to the two config files
+#chown root:named /var/named/fw-maheswar.com
+#chown root:named /var/named/rv-maheswar.com
+
+To confirm the DNS zones lookup files are free from any syntatical errors, run the commands 
+#named-checkconf
+#named-checkzone maheswartech.com /var/named/fw-maheswar.com
+#named-checkzone 192.168.149.208 /var/named/rv-maheswar.com
+
+For the changes to be reflected in DNS server restart the Bind DNS server
+#systemctl restart named
+
+Add firewall rules:
+#firewall-cmd --zone=public --add-service=dns --permanent
+#firewall-cmd --zone=public --add-port=53/udp --permanent
+#firewall-cmd --reload
+
+Step:-5 Check the Dns server from the client machine
+
+#vim /etc/resolv.conf
+nameserver 192.168.149.208
+
+#vim /etc/sysconfig/network-scripts/ifcfg-enp0s3 ot s9 or s8
+DNS=192.168.149.208
+
+#systemctl restart NetworkManager
+
+Using the nslookup command test the Bind DNS server as shown:
+
+#nslookup www.maheswar.com
+#nslookup 192.168.149.208
+
+The output from forward dns server confirms that the dns is working properly
+
+Moreover you can also use the dig command 
+
+#dig www.maheswar.com
+#dig -x 192.168.149.208
+
+Perfect everything is working properly 
+
+Now open windows search for control pannel
+1) In that open Network and Internet
+2) Then open Network sharing centre
+3) Click on connections
+4) Click on properties
+5) Then click on ipv4 address
+6) And then add the DNS ip address and save it
+7) OPen cmd in windows
+8) nslookup www.maheswar.com or nslookup 192.168.149.208
+=========================================================================================
+                        DNS CONFIG COMPLETED
+=========================================================================================

@@ -1,0 +1,116 @@
+Configuration of File Transfer Protocol(FTP) Server in RHEL8
+
+--To transfer or copy files from one machine to another using FTP config
+[server machine]
+#dnf repolist
+
+Install ftp and vsftpd
+#yum install ftp vsftpd -y
+
+Now go to main configuration file of ftp and make some changes
+#vim /etc/vsftpd/vsftpd.conf
+Allow the following 
+anonymous_enable= YES
+:wq!
+
+Now we have to enable and start ftp services
+#systemctl start vsftpd.service
+#systemctl enable vsftpd.service
+#systemctl status vsftpd.service
+
+Now add ftp to firewall to give access to share files
+#firewall-cmd --list-all
+#firewall-cmd --add-service=ftp --permanent
+#firewall-cmd --reload
+
+To check our ftp is working or not open chrome and type our ip address
+#ip addr
+chrome--ftp:192.168.232.4
+
+Now lets move to default folder of FTP
+#cd /var/ftp/pub
+#ls
+#cal > cal.txt
+#cat cal.txt
+
+To login as anonymous 
+#ftp localhost
+name: anonymous
+passwd: abc@gmail.com
+login succsful
+ftp>ls
+pub
+ftp>cd pub
+cal.txt
+ftp>cat cal.txt
+ftp>bye
+
+
+How can we login by user to login to ftp server
+
+#su -adminuser
+
+#ftp localhost
+password: Mahesh@143
+
+ftp>ls
+
+here we can see our adminuser files but in anonymous we have seen the public (pub) folders, if we use anonymous for login the files will be shown by the server
+
+--open cmd windows 
+ftp 192.168.232.4
+name:anonymous(also you can login as user also)
+passwd:maheswarreddy5931@gmail.com
+ftp>ls
+ftp>cd pub
+ftp>get cal.txt
+to copy multiple files at a time
+ftp>mget cal.txt mahi1 mahi2
+also you can put your files to ftp
+ftp>put filename
+now lets see is filename is copied or not in server machine its copied
+ftp>bye or quit
+
+it will be saved to the windows machine
+
+Now lets login to client machine to copy files from server
+
+#yum install ftp vsftpd
+start the service
+ftp 192.168.232.4
+name:adminuser
+password:
+and from here u can copy files and shae files through the ftp 
+--By using ftp we can tranfer files to client to server or server to client we can also copy files
+
+To disable the anonymous we have to modify the config file
+#vim /etc/vsftpd/vsftpd.conf
+anonymous_enable=NO
+#systemctl restart vsftpd
+
+Now if we login through broweser it will ask for username and password
+
+Now to use a specific file as anonymous folder we have modify
+#mkdir /ftp
+#vim /etc/vsftpd/vsftpd.conf
+anonymous_enable=NO
+at the last of doucument add
+anon_root=/ftp
+:wq!
+#systemctl restart vsftpd
+
+now if we login as anonymous it will login successful but will not show the files or folders it will through failed
+
+to over come that 
+go to 
+#ls -ldZ /var/ftp/pub
+its context islis :public_content_t
+Now we have to modify same above to our dir /ftp
+#ls -ldZ /ftp
+#chcon -t public_content_t /ftp
+#ls -ldZ /ftp
+
+#systemctl restart vsftpd
+
+Now we can abel to login and access the /ftp files 
+

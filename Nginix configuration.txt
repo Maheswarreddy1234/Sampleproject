@@ -1,0 +1,182 @@
+Nginx Installation and configuration
+==========================================
+What Nginx do......
+1)A HTTP server
+2)Reverse proxy server
+3)Load Balancer
+4)Mail proxy server
+5)HTTP cache and more.....
+WHY NGINX
+1)Can handle concurrent clients and more web traffic better then apache.
+2)widely used in industries nowadays.
+3)can server static contents faster than apache webserver.
+4)Highly scalable architecture.
+5)A single thread can handle multiple connection.
+==========================================================
+NGINX INSTALLATION 
+==========================================================
+To install nginx run the below command
+#yum install nginx -y
+
+Once after installation the mariadb will run automatically in Ubuntu but for Centos we have to execute a command
+#systemctl start nginx
+#systemctl enable nginx 
+#systemctl status nginx
+
+The installation completed and perfectly started the nginx server. Now copy your ip address and serach in browser to see
+nginx page.
+#ifconfig 
+Google search-->192.168.1.2-->Displays nginx web.html page-->Done 
+
+The Nginx configuration file location is 
+#cd /etc/nginx
+#vim nginx.conf
+#ll
+#cd sites-enabled
+#vim maheswar.local
+server {
+	listen 80 default_server;
+	server_name 192.168.1.2;
+	root /var/www/maheswar.local;
+	index.html index.htm index.php index;
+
+	location / {
+	try_files $uri $uri/ =404;
+}
+	location /foss {
+	try_files $uri /foss.html;
+}
+	error_page 400 404 /error.html;
+        location = /error.html {
+	internal;
+}
+}
+
+wq!
+PART:-2 NGINX WEB SECURITY
+1)You can restrict access wherever possible by allowing and blocking ip address.
+2)You cna protect your sensitive pages by username and password.
+3)Use SSL certificate to secure your site by encrypting the client-server traffic.(we use self signed certificate)
+
+#cd /etc/nginx/sites-enabled
+#vim maheswar.local
+location /secure {
+try_files $uri /secure.html;
+allow 192.168.1.2;
+deny all;
+}
+If we open google it will access with only 192.168.1.2 ip address only
+
+Authentication:-
+------------------
+#apt-get install -y apache2-utills
+Creating a user to access our website 
+#htpasswd -c /etc/nginx/passwords admin
+Enter the password for the admin user
+#htpasswd /etc/nginx/passwords maheswar
+Enter the password for the maheswar
+
+#cd /etc/nginx/sites-enabled
+#vim maheswar.local
+location /secure {
+try_files $uri /secure.html;
+auth_basic "Authentication is recquired here...";
+auth_basic_user_file /etc/nginx/passwords;
+allow 192.168.1.2;
+deny all;
+
+}
+wq!
+Now if you login from the google it will ask for password and username
+
+To make site more secure(SSL)
+#apt-get install -y openssl
+#openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/nginx.key -out /etc/nginx/nginx.cert
+Enter the recquired details
+
+#cd /etc/nginx/sites-enabled 
+#vim maheswar.local
+server {
+listen 80;
+server_name 192.168.1.2;
+return 301 https://$server_name$request_uri;
+}
+server {
+listen 443 ssl default_server;
+ssl_certificate /etc/nginx/nginx.cert;
+ssl_certificate_key /etc/nginx/nginx.key;
+}
+
+Part:3 REVERSe PROXY & LOAD BALANCER
+REVERSE PROXY:-
+-------------------
+Client <--->Reverse proxy<--->Server
+A reverse proxy sites in front of a server and can
+1)Act as a load balancer.
+2)Protect the orgin servers from attacks by hiding its ip.
+3)cache content for faster performance.
+4)provide ssl encryption and descryption to and from the server.
+
+LOAD BALANCER:-
+client <---> Load balancer <--->server1 server2 server3
+Some of the Load Balancing options
+1)Round Robin
+2)Least connection
+3)IP Hash
+#cd /etc/nginx/sites-enabled
+#vim maheswar.local
+server{
+listen 80;
+server_name 192.168.1.2;
+root /var/www/maheswar.local;
+index.html index index.htm index.php;
+
+upstream app_3000
+{
+server 127.0.0.1:3000;
+}
+upstream roundrobin
+{
+server 127.0.0.1:3000;
+server 127.0.0.1:3001;
+server 127.0.0.1:3002;
+}
+upstream leastconn 
+{
+least_conn;
+server 127.0.0.1:3000;
+server 127.0.0.1:3001;
+server 127.0.0.1:3002;
+}
+upstream iphash
+{
+ip_hash;
+server 127.0.0.1:3000;
+server 127.0.0.1:3001;
+server 127.0.0.1:3002;
+}
+location /proxy 
+{
+proxy_pass http://app_3000/;
+}
+location /roundrobin 
+{
+proxy_pass http://roundrobin/;
+}
+location /leastconn 
+{
+proxy_pass http://leastconn/;
+}
+location /iphash 
+{
+proxy_pass http://iphash/;
+}
+}
+
+
+
+
+
+
+
+ 
